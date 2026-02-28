@@ -1,97 +1,113 @@
-import * as Tone from 'tone'
-
-let audioInitialized = false
-let backgroundSynth: Tone.PolySynth | null = null
-let backgroundLoop: Tone.Loop | null = null
+// Web Audio API for sound synthesis
+let audioContext: AudioContext | null = null
+let ambienceStarted = false
 
 export async function initializeAudio() {
-  if (audioInitialized) return
-  
-  await Tone.start()
-  audioInitialized = true
-  
-  // Create background synth
-  backgroundSynth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: 'square' },
-    envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
-  }).toDestination()
-  
-  // Background music loop - cyberpunk beat
-  backgroundLoop = new Tone.Loop((time) => {
-    const notes = ['C2', 'C2', 'D#2', 'C2', 'D#2', 'C2']
-    const note = notes[Math.floor(Math.random() * notes.length)]
-    backgroundSynth?.triggerAttackRelease(note, '8n', time)
-  }, '0.5')
-  
-  backgroundLoop.start(0)
-  Tone.Transport.bpm.value = 120
-  Tone.Transport.start()
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume()
+    }
+  }
+
+  if (!ambienceStarted) {
+    ambienceStarted = true
+    playAmbienceLoop()
+  }
 }
 
 export function stopAudio() {
-  if (backgroundLoop) {
-    backgroundLoop.stop()
-    backgroundLoop.dispose()
-    backgroundLoop = null
+  ambienceStarted = false
+}
+
+function playAmbienceLoop() {
+  if (!audioContext || !ambienceStarted) return
+
+  const playDroneNote = (frequency: number, duration: number) => {
+    const osc = audioContext!.createOscillator()
+    const gain = audioContext!.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.value = frequency
+    gain.gain.setValueAtTime(0.02, audioContext!.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext!.currentTime + duration)
+
+    osc.connect(gain)
+    gain.connect(audioContext!.destination)
+
+    osc.start(audioContext!.currentTime)
+    osc.stop(audioContext!.currentTime + duration)
   }
-  
-  if (backgroundSynth) {
-    backgroundSynth.dispose()
-    backgroundSynth = null
+
+  const notes = [65.41, 130.81, 174.61, 293.66] // C2, C3, F3, D4
+  let index = 0
+
+  const playNext = () => {
+    if (!ambienceStarted) return
+    playDroneNote(notes[index], 1)
+    index = (index + 1) % notes.length
+    setTimeout(playNext, 1000)
   }
-  
-  Tone.Transport.stop()
-  audioInitialized = false
+
+  playNext()
 }
 
-export async function playHackSound() {
-  await Tone.start()
-  
-  const synth = new Tone.Synth({
-    oscillator: { type: 'sawtooth' },
-    envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.05 }
-  }).toDestination()
-  
-  synth.triggerAttackRelease('G4', '0.1')
-  
-  setTimeout(() => synth.dispose(), 200)
+export function playDodgeSound() {
+  if (!audioContext) return
+
+  const osc = audioContext.createOscillator()
+  const gain = audioContext.createGain()
+
+  osc.type = 'square'
+  osc.frequency.setValueAtTime(440, audioContext.currentTime)
+  osc.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1)
+
+  gain.gain.setValueAtTime(0.1, audioContext.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1)
+
+  osc.connect(gain)
+  gain.connect(audioContext.destination)
+
+  osc.start(audioContext.currentTime)
+  osc.stop(audioContext.currentTime + 0.1)
 }
 
-export async function playHitSound() {
-  await Tone.start()
-  
-  const synth = new Tone.Synth({
-    oscillator: { type: 'triangle' },
-    envelope: { attack: 0.01, decay: 0.05, sustain: 0, release: 0 }
-  }).toDestination()
-  
-  synth.triggerAttackRelease('C2', '0.05')
-  
-  setTimeout(() => synth.dispose(), 100)
+export function playHitSound() {
+  if (!audioContext) return
+
+  const osc = audioContext.createOscillator()
+  const gain = audioContext.createGain()
+
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(150, audioContext.currentTime)
+  osc.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.15)
+
+  gain.gain.setValueAtTime(0.15, audioContext.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15)
+
+  osc.connect(gain)
+  gain.connect(audioContext.destination)
+
+  osc.start(audioContext.currentTime)
+  osc.stop(audioContext.currentTime + 0.15)
 }
 
-export async function playDeathSound() {
-  await Tone.start()
-  
-  const synth = new Tone.Synth({
-    oscillator: { type: 'square' },
-    envelope: { attack: 0.05, decay: 0.3, sustain: 0, release: 0 }
-  }).toDestination()
-  
-  synth.triggerAttackRelease('C1', '0.3')
-  
-  setTimeout(() => synth.dispose(), 400)
-}
+export function playHackSound() {
+  if (!audioContext) return
 
-export async function playDodgeSound() {
-  await Tone.start()
-  
-  const synth = new Tone.Synth({
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.02, decay: 0.1, sustain: 0, release: 0.05 }
-  }).toDestination()
-  
-  synth.triggerAttackRelease('E4', '0.1')
-  
-  setTimeout(() => synth.dispose(), 150)
+  const osc = audioContext.createOscillator()
+  const gain = audioContext.createGain()
+
+  osc.type = 'triangle'
+  osc.frequency.setValueAtTime(200, audioContext.currentTime)
+  osc.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 0.05)
+
+  gain.gain.setValueAtTime(0.2, audioContext.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1)
+
+  osc.connect(gain)
+  gain.connect(audioContext.destination)
+
+  osc.start(audioContext.currentTime)
+  osc.stop(audioContext.currentTime + 0.1)
 }
