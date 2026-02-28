@@ -1,87 +1,135 @@
-import * as Tone from 'tone';
+// Web Audio API for sound synthesis
+let audioContext: AudioContext | null = null;
+let ambienceStarted = false;
 
-let synthBass: Tone.Synth | null = null;
-let hihat: Tone.MetalSynth | null = null;
-let dub: Tone.Synth | null = null;
+export async function initializeAudio() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+  }
 
+  if (!ambienceStarted) {
+    ambienceStarted = true;
+    playAmbienceLoop();
+  }
+}
+
+export function stopAudio() {
+  ambienceStarted = false;
+}
+
+// For backwards compatibility
 export async function initAudio() {
-  await Tone.start();
-  
-  // Initialize drum synth for beats
-  hihat = new Tone.MetalSynth({
-    harmonics: [8, 12],
-    resonance: 800,
-    volume: -8,
-  }).toDestination();
-
-  // Bass synth
-  synthBass = new Tone.Synth({
-    oscillator: { type: 'square' },
-    envelope: {
-      attack: 0.005,
-      decay: 0.1,
-      sustain: 0,
-      release: 0.1,
-    },
-    volume: -6,
-  }).toDestination();
-
-  // Dub synth for effects
-  dub = new Tone.Synth({
-    oscillator: { type: 'triangle' },
-    envelope: {
-      attack: 0.01,
-      decay: 0.2,
-      sustain: 0.1,
-      release: 0.2,
-    },
-    volume: -12,
-  }).toDestination();
-}
-
-export function playBackgroundBeat() {
-  if (!synthBass || !hihat) return;
-  
-  const now = Tone.now();
-  
-  // Bass line pattern (kicks)
-  synthBass.triggerAttackRelease('C1', '8n', now);
-  synthBass.triggerAttackRelease('C1', '8n', now + 0.5);
-  synthBass.triggerAttackRelease('A0', '8n', now + 1);
-  synthBass.triggerAttackRelease('C1', '8n', now + 1.5);
-  
-  // Hi-hat pattern
-  hihat.triggerAttackRelease('16n', now + 0.25);
-  hihat.triggerAttackRelease('16n', now + 0.75);
-  hihat.triggerAttackRelease('16n', now + 1.25);
-  hihat.triggerAttackRelease('16n', now + 1.75);
-}
-
-export function playHackSound() {
-  if (!dub) return;
-  const now = Tone.now();
-  dub.triggerAttackRelease('G4', '16n', now);
-  dub.triggerAttackRelease('D5', '32n', now + 0.05);
-}
-
-export function playJumpSound() {
-  if (!dub) return;
-  const now = Tone.now();
-  dub.triggerAttackRelease('C5', '8n', now);
-  dub.triggerAttackRelease('E5', '16n', now + 0.1);
-}
-
-export function playDeathSound() {
-  if (!synthBass || !dub) return;
-  const now = Tone.now();
-  
-  synthBass.triggerAttackRelease('C1', '2n', now);
-  dub.triggerAttackRelease('G1', '1n', now);
-  dub.triggerAttackRelease('D1', '1n', now + 0.2);
+  return initializeAudio();
 }
 
 export function stopAllSounds() {
-  if (synthBass) synthBass.triggerRelease();
-  if (dub) dub.triggerRelease();
-  if (hihat) hihat.triggerRelease();
+  stopAudio();
+}
+
+function playAmbienceLoop() {
+  if (!audioContext || !ambienceStarted) return;
+
+  const playDroneNote = (frequency: number, duration: number) => {
+    const osc = audioContext!.createOscillator();
+    const gain = audioContext!.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.02, audioContext!.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext!.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(audioContext!.destination);
+
+    osc.start(audioContext!.currentTime);
+    osc.stop(audioContext!.currentTime + duration);
+  };
+
+  const notes = [65.41, 130.81, 174.61, 293.66]; // C2, C3, F3, D4
+  let index = 0;
+
+  const playNext = () => {
+    if (!ambienceStarted) return;
+    playDroneNote(notes[index], 1);
+    index = (index + 1) % notes.length;
+    setTimeout(playNext, 1000);
+  };
+
+  playNext();
+}
+
+export function playDodgeSound() {
+  if (!audioContext) return;
+
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(440, audioContext.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1);
+
+  gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+
+  osc.start(audioContext.currentTime);
+  osc.stop(audioContext.currentTime + 0.1);
+}
+
+export function playHitSound() {
+  if (!audioContext) return;
+
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, audioContext.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.15);
+
+  gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+
+  osc.start(audioContext.currentTime);
+  osc.stop(audioContext.currentTime + 0.15);
+}
+
+export function playHackSound() {
+  if (!audioContext) return;
+
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(200, audioContext.currentTime);
+  osc.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 0.05);
+
+  gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+
+  osc.start(audioContext.currentTime);
+  osc.stop(audioContext.currentTime + 0.1);
+}
+
+// Compatibility aliases
+export function playBackgroundBeat() {
+  playHitSound();
+}
+
+export function playJumpSound() {
+  playDodgeSound();
+}
+
+export function playDeathSound() {
+  playHitSound();
 }
