@@ -32,37 +32,54 @@ export default function GestureControl({ onGesture }: GestureControlProps) {
   useEffect(() => {
     const initMediaPipe = async () => {
       try {
+        console.log('[v0] Starting MediaPipe initialization...');
+        
         // Load scripts from CDN
         await Promise.all([
           new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.1/drawing_utils.js';
-            script.onload = resolve;
-            script.onerror = reject;
+            script.onload = () => {
+              console.log('[v0] DrawingUtils loaded');
+              resolve(null);
+            };
+            script.onerror = () => {
+              console.log('[v0] DrawingUtils load failed (optional)');
+              resolve(null); // Optional, doesn't fail initialization
+            };
             document.body.appendChild(script);
           }),
           new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js';
-            script.onload = resolve;
+            script.onload = () => {
+              console.log('[v0] Camera utils loaded');
+              resolve(null);
+            };
             script.onerror = reject;
             document.body.appendChild(script);
           }),
           new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js';
-            script.onload = resolve;
+            script.onload = () => {
+              console.log('[v0] Hands model loaded');
+              resolve(null);
+            };
             script.onerror = reject;
             document.body.appendChild(script);
           }),
         ]);
 
+        console.log('[v0] All scripts loaded, checking window objects...');
         if (!window.Hands || !window.Camera) {
+          console.error('[v0] Missing window.Hands or window.Camera', { Hands: !!window.Hands, Camera: !!window.Camera });
           throw new Error('MediaPipe libraries failed to load');
         }
 
         const { Hands, Camera, DrawingUtils } = window;
 
+        console.log('[v0] Initializing Hands model...');
         handsRef.current = new Hands({
           locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`,
         });
@@ -175,6 +192,7 @@ export default function GestureControl({ onGesture }: GestureControlProps) {
 
         if (!videoRef.current) throw new Error('Video element not found');
 
+        console.log('[v0] Creating Camera instance...');
         cameraRef.current = new Camera(videoRef.current, {
           onFrame: async () => {
             if (handsRef.current && videoRef.current) {
@@ -185,10 +203,16 @@ export default function GestureControl({ onGesture }: GestureControlProps) {
           height: 240,
         });
 
+        console.log('[v0] Initializing camera (this will request permissions)...');
         await cameraRef.current.initialize();
+        console.log('[v0] Camera initialized successfully');
+        
+        console.log('[v0] Starting camera stream...');
         cameraRef.current.start();
+        console.log('[v0] Camera stream started');
       } catch (err) {
         console.error('[v0] MediaPipe setup error:', err);
+        console.error('[v0] Error type:', err instanceof Error ? err.message : String(err));
         setError('Camera access denied or MediaPipe failed to load. Using keyboard fallback.');
         onGesture({
           handPosition: null,

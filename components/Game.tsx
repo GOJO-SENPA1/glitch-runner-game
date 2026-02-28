@@ -150,7 +150,8 @@ export default function Game() {
     }
   };
 
-  const startGame = () => {
+  const startGame = async () => {
+    await initAudio();
     const state = gameStateRef.current;
     state.gameStarted = true;
     state.isGameOver = false;
@@ -414,16 +415,13 @@ export default function Game() {
       <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
 
       {state.gameStarted && !state.isGameOver && (
-        <>
-          <HUD
-            score={hudState.score}
-            corruption={hudState.corruption}
-            speed={hudState.speed}
-            combo={hudState.combo}
-            unlockedKumari={hudState.unlockedKumari}
-          />
-          <GestureControl onGesture={handleGesture} />
-        </>
+        <HUD
+          score={hudState.score}
+          corruption={hudState.corruption}
+          speed={hudState.speed}
+          combo={hudState.combo}
+          unlockedKumari={hudState.unlockedKumari}
+        />
       )}
 
       {!state.gameStarted && !state.isGameOver && (
@@ -433,6 +431,9 @@ export default function Game() {
       {state.isGameOver && (
         <DeathScreen score={hudState.score} onRestart={restartGame} />
       )}
+
+      {/* GestureControl always mounted to allow early camera access */}
+      <GestureControl onGesture={handleGesture} />
     </div>
   );
 }
